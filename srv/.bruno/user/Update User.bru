@@ -1,0 +1,26 @@
+meta {
+  name: Update User
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/v1/users/{{userId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "data": {
+    "type": "users",
+    "id": "{{userId}}",
+    "attributes": {
+      "username": "updateduser",
+      "email": "updated@example.com"
+    }
+  }
+}

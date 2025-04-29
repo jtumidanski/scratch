@@ -1,0 +1,11 @@
+meta {
+  name: Delete Folder
+  type: http
+  seq: 19
+}
+
+delete {
+  url: {{baseUrl}}/v1/folders/{{folderId}}
+  body: none
+  auth: inherit
+}

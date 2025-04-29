@@ -1,0 +1,11 @@
+meta {
+  name: Get Folders by User ID
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/v1/folders?user_id={{userId}}
+  body: none
+  auth: inherit
+}

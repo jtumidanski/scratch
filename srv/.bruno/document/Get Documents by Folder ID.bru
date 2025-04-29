@@ -1,0 +1,11 @@
+meta {
+  name: Get Documents by Folder ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/v1/documents?folder_id={{folderId}}
+  body: none
+  auth: inherit
+}

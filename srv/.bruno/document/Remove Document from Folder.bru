@@ -1,0 +1,25 @@
+meta {
+  name: Remove Document from Folder
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/v1/documents/{{documentId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "data": {
+    "type": "documents",
+    "id": "{{documentId}}",
+    "attributes": {
+      "folder_id": null
+    }
+  }
+}

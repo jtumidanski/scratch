@@ -1,0 +1,38 @@
+# Binaries for programs and plugins
+srv/*.exe
+srv/*.exe~
+srv/*.dll
+srv/*.so
+srv/*.dylib
+
+# Test binary, built with `go test -c`
+srv/*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+srv/*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+srv/go.work
+
+# IDE specific files
+srv/.idea/
+ui/.idea/
+srv/.vscode/
+srv/*.swp
+srv/*.swo
+
+# Environment variables
+/srv/.env
+
+# Logs
+srv/*.log
+
+# OS specific
+\srv\.DS_Store
+\srv\Thumbs.db
+ui/.idea
+ui/.next
+ui/node_modules
