@@ -1,0 +1,11 @@
+meta {
+  name: Get Root Folders
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/v1/folders?parent_id=null
+  body: none
+  auth: inherit
+}

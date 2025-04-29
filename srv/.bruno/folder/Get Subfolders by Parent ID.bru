@@ -1,0 +1,11 @@
+meta {
+  name: Get Subfolders by Parent ID
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/v1/folders?parent_id={{parentFolderId}}
+  body: none
+  auth: inherit
+}

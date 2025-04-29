@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Nord Theme - Polar Night (Background) */
+    --background: 220 16% 22%; /* nord0: #2E3440 */
+    --foreground: 218 27% 92%; /* nord5: #E5E9F0 */
+
+    --card: 222 16% 28%; /* nord1: #3B4252 */
+    --card-foreground: 218 27% 92%; /* nord5: #E5E9F0 */
+
+    --popover: 222 16% 28%; /* nord1: #3B4252 */
+    --popover-foreground: 218 27% 92%; /* nord5: #E5E9F0 */
+
+    /* Nord Theme - Frost (Primary) */
+    --primary: 193 43% 67%; /* nord8: #88C0D0 */
+    --primary-foreground: 220 16% 22%; /* nord0: #2E3440 */
+
+    /* Nord Theme - Polar Night (Secondary) */
+    --secondary: 220 17% 32%; /* nord2: #434C5E */
+    --secondary-foreground: 218 27% 92%; /* nord5: #E5E9F0 */
+
+    /* Nord Theme - Polar Night (Muted) */
+    --muted: 220 16% 36%; /* nord3: #4C566A */
+    --muted-foreground: 219 28% 88%; /* nord4: #D8DEE9 */
+
+    /* Nord Theme - Frost (Accent) */
+    --accent: 210 34% 63%; /* nord9: #81A1C1 */
+    --accent-foreground: 218 27% 92%; /* nord5: #E5E9F0 */
+
+    /* Nord Theme - Aurora (Destructive) */
+    --destructive: 354 42% 56%; /* nord11: #BF616A */
+    --destructive-foreground: 218 27% 92%; /* nord5: #E5E9F0 */
+
+    /* Nord Theme - Polar Night (Border & Input) */
+    --border: 220 17% 32%; /* nord2: #434C5E */
+    --input: 220 17% 32%; /* nord2: #434C5E */
+    --ring: 193 43% 67%; /* nord8: #88C0D0 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

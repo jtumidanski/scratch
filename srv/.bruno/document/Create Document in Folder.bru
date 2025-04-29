@@ -1,0 +1,27 @@
+meta {
+  name: Create Document in Folder
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/v1/documents
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "data": {
+    "type": "documents",
+    "attributes": {
+      "title": "Test Document in Folder",
+      "content": "This is a test document content in a folder.",
+      "user_id": "{{userId}}",
+      "folder_id": "{{folderId}}"
+    }
+  }
+}

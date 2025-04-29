@@ -1,0 +1,11 @@
+meta {
+  name: Get Documents with No Folder
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/v1/documents?folder_id=null
+  body: none
+  auth: inherit
+}

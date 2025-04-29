@@ -1,0 +1,26 @@
+meta {
+  name: Create Subfolder
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/v1/folders
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "data": {
+    "type": "folders",
+    "attributes": {
+      "name": "Test Subfolder",
+      "user_id": "{{userId}}",
+      "parent_id": "{{parentFolderId}}"
+    }
+  }
+}

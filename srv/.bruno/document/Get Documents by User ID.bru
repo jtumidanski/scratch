@@ -1,0 +1,11 @@
+meta {
+  name: Get Documents by User ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/v1/documents?user_id={{userId}}
+  body: none
+  auth: inherit
+}

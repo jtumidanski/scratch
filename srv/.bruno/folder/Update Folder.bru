@@ -1,0 +1,25 @@
+meta {
+  name: Update Folder
+  type: http
+  seq: 17
+}
+
+patch {
+  url: {{baseUrl}}/v1/folders/{{folderId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "data": {
+    "type": "folders",
+    "id": "{{folderId}}",
+    "attributes": {
+      "name": "Updated Folder Name"
+    }
+  }
+}
