@@ -66,7 +66,7 @@ func (r DocumentResource) FindAll(req api2go.Request) (api2go.Responder, error) 
 		return &api2go.Response{}, api2go.NewHTTPError(err, err.Error(), http.StatusInternalServerError)
 	}
 
-	return &api2go.Response{Res: documents}, nil
+	return &api2go.Response{Res: documents, Code: http.StatusOK}, nil
 }
 
 // FindOne returns a single document
@@ -89,7 +89,7 @@ func (r DocumentResource) FindOne(id string, req api2go.Request) (api2go.Respond
 		return &api2go.Response{}, api2go.NewHTTPError(err, err.Error(), http.StatusInternalServerError)
 	}
 
-	return &api2go.Response{Res: document}, nil
+	return &api2go.Response{Res: document, Code: http.StatusOK}, nil
 }
 
 // Create creates a new document

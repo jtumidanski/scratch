@@ -66,7 +66,7 @@ func (r FolderResource) FindAll(req api2go.Request) (api2go.Responder, error) {
 		return &api2go.Response{}, api2go.NewHTTPError(err, err.Error(), http.StatusInternalServerError)
 	}
 
-	return &api2go.Response{Res: folders}, nil
+	return &api2go.Response{Res: folders, Code: http.StatusOK}, nil
 }
 
 // FindOne returns a single folder
@@ -89,7 +89,7 @@ func (r FolderResource) FindOne(id string, req api2go.Request) (api2go.Responder
 		return &api2go.Response{}, api2go.NewHTTPError(err, err.Error(), http.StatusInternalServerError)
 	}
 
-	return &api2go.Response{Res: folder}, nil
+	return &api2go.Response{Res: folder, Code: http.StatusOK}, nil
 }
 
 // Create creates a new folder

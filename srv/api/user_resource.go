@@ -34,7 +34,7 @@ func (r UserResource) FindAll(req api2go.Request) (api2go.Responder, error) {
 		return &api2go.Response{}, api2go.NewHTTPError(err, err.Error(), http.StatusInternalServerError)
 	}
 
-	return &api2go.Response{Res: users}, nil
+	return &api2go.Response{Res: users, Code: http.StatusOK}, nil
 }
 
 // FindOne returns a single user
@@ -57,7 +57,7 @@ func (r UserResource) FindOne(id string, req api2go.Request) (api2go.Responder, 
 		return &api2go.Response{}, api2go.NewHTTPError(err, err.Error(), http.StatusInternalServerError)
 	}
 
-	return &api2go.Response{Res: user}, nil
+	return &api2go.Response{Res: user, Code: http.StatusOK}, nil
 }
 
 // Create creates a new user

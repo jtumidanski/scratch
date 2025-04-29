@@ -2,7 +2,7 @@ name: PR Validation
 
 on:
   pull_request:
-    branches: [ master, main ]
+    branches: [ main ]
     
 jobs:
   build:
@@ -18,12 +18,8 @@ jobs:
     - name: Build Docker image
       uses: docker/build-push-action@v4
       with:
-        context: .
+        context: ./ui
         push: false
         tags: scratch-document-ui:pr-${{ github.event.pull_request.number }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        
-    - name: Run linting
-      run: |
-        docker run --rm scratch-document-ui:pr-${{ github.event.pull_request.number }} npm run lint

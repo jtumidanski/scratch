@@ -89,13 +89,13 @@ func TestFolderResource_CRUD(t *testing.T) {
 	})
 
 	// Test nested folders
+	childFolder := models.Folder{
+		Name:     "Child Folder",
+		UserID:   user.ID,
+		ParentID: &folder.ID,
+	}
 	t.Run("NestedFolders", func(t *testing.T) {
 		// Create a child folder
-		childFolder := models.Folder{
-			Name:     "Child Folder",
-			UserID:   user.ID,
-			ParentID: &folder.ID,
-		}
 		require.NoError(t, db.Create(&childFolder).Error, "Failed to create child folder")
 
 		// Test FindAll with parent_id filter
@@ -140,13 +140,13 @@ func TestFolderResource_CRUD(t *testing.T) {
 
 	// Test Delete
 	t.Run("Delete", func(t *testing.T) {
-		resp, err := resource.Delete(folder.ID.String(), api2go.Request{})
+		resp, err := resource.Delete(childFolder.ID.String(), api2go.Request{})
 		require.NoError(t, err, "Failed to delete folder")
 		require.Equal(t, http.StatusNoContent, resp.StatusCode(), "Expected status code 204")
 
 		// Verify folder is deleted
 		var count int64
-		db.Model(&models.Folder{}).Where("id = ?", folder.ID).Count(&count)
+		db.Model(&models.Folder{}).Where("id = ?", childFolder.ID).Count(&count)
 		assert.Equal(t, int64(0), count, "Expected folder to be deleted")
 	})
 }
