@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+  const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined)
 
   // Navigation state
   const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
@@ -346,7 +346,7 @@ export default function DashboardPage() {
     )
   }
 
-  const handleFolderSelect = (folderId: string | null) => {
+  const handleFolderSelect = (folderId: string | undefined) => {
     setCurrentFolderId(folderId)
   }
 
