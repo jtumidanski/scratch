@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24.2-alpine3.21 AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/document-storage-service
 
 # Runtime stage
-FROM alpine:latest
+FROM alpine:3.21
 
 WORKDIR /app
 
