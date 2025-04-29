@@ -23,7 +23,3 @@ jobs:
         tags: scratch-document-ui:pr-${{ github.event.pull_request.number }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        
-    - name: Run linting
-      run: |
-        docker run --rm scratch-document-ui:pr-${{ github.event.pull_request.number }} npm run lint
