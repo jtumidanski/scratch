@@ -15,7 +15,8 @@ import { NIL_UUID } from './utils';
 // Base API URL from environment variables with fallback
 // Using typeof window to check if we're in browser context
 // This ensures we get the latest value of the environment variable at runtime
-const API_BASE_URL = process.env.NEXT_PUBLIC_ROOT_API_URL || window.location.origin;
+const API_BASE_URL = process.env.NEXT_PUBLIC_ROOT_API_URL || 
+  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
 
 // Generic fetch function with error handling
 async function fetchApi<T>(
