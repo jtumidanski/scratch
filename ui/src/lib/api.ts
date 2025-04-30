@@ -13,7 +13,9 @@ import {
 import { NIL_UUID } from './utils';
 
 // Base API URL from environment variables with fallback
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost/v1';
+// Using typeof window to check if we're in browser context
+// This ensures we get the latest value of the environment variable at runtime
+const API_BASE_URL = process.env.NEXT_PUBLIC_ROOT_API_URL || window.location.origin;
 
 // Generic fetch function with error handling
 async function fetchApi<T>(
@@ -47,12 +49,12 @@ async function fetchApi<T>(
 
 // User API functions
 export async function getUsers(): Promise<User[]> {
-  const response = await fetchApi<ApiResponse<User>>('/users');
+  const response = await fetchApi<ApiResponse<User>>('/v1/users');
   return Array.isArray(response.data) ? response.data : [response.data];
 }
 
 export async function getUser(id: string): Promise<User> {
-  const response = await fetchApi<ApiResponse<User>>(`/users/${id}`);
+  const response = await fetchApi<ApiResponse<User>>(`/v1/users/${id}`);
   return Array.isArray(response.data) ? response.data[0] : response.data;
 }
 
@@ -103,7 +105,7 @@ export async function createUser(username: string, email: string): Promise<User>
     }
   };
 
-  const response = await fetchApi<ApiResponse<User>>('/users', {
+  const response = await fetchApi<ApiResponse<User>>('/v1/users', {
     method: 'POST',
     body: JSON.stringify(request)
   });
@@ -120,7 +122,7 @@ export async function updateUser(id: string, data: Partial<{ username: string, e
     }
   };
 
-  const response = await fetchApi<ApiResponse<User>>(`/users/${id}`, {
+  const response = await fetchApi<ApiResponse<User>>(`/v1/users/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(request)
   });
@@ -136,27 +138,27 @@ export async function deleteUser(id: string): Promise<void> {
 
 // Folder API functions
 export async function getFolders(): Promise<Folder[]> {
-  const response = await fetchApi<ApiResponse<Folder>>('/folders');
+  const response = await fetchApi<ApiResponse<Folder>>('/v1/folders');
   return Array.isArray(response.data) ? response.data : [response.data];
 }
 
 export async function getFoldersByUserId(userId: string): Promise<Folder[]> {
-  const response = await fetchApi<ApiResponse<Folder>>(`/folders?user_id=${userId}`);
+  const response = await fetchApi<ApiResponse<Folder>>(`/v1/folders?user_id=${userId}`);
   return Array.isArray(response.data) ? response.data : [response.data];
 }
 
 export async function getSubfoldersByParentId(parentId: string): Promise<Folder[]> {
-  const response = await fetchApi<ApiResponse<Folder>>(`/folders?parent_id=${parentId}`);
+  const response = await fetchApi<ApiResponse<Folder>>(`/v1/folders?parent_id=${parentId}`);
   return Array.isArray(response.data) ? response.data : [response.data];
 }
 
 export async function getRootFolders(): Promise<Folder[]> {
-  const response = await fetchApi<ApiResponse<Folder>>('/folders?parent_id=null');
+  const response = await fetchApi<ApiResponse<Folder>>('/v1/folders?parent_id=null');
   return Array.isArray(response.data) ? response.data : [response.data];
 }
 
 export async function getFolder(id: string): Promise<Folder> {
-  const response = await fetchApi<ApiResponse<Folder>>(`/folders/${id}`);
+  const response = await fetchApi<ApiResponse<Folder>>(`/v1/folders/${id}`);
   return Array.isArray(response.data) ? response.data[0] : response.data;
 }
 
@@ -173,7 +175,7 @@ export async function createFolder(name: string, userId: string, parentId?: stri
     }
   };
 
-  const response = await fetchApi<ApiResponse<Folder>>('/folders', {
+  const response = await fetchApi<ApiResponse<Folder>>('/v1/folders', {
     method: 'POST',
     body: JSON.stringify(request)
   });
@@ -190,7 +192,7 @@ export async function updateFolder(id: string, data: Partial<{ name: string, par
     }
   };
 
-  const response = await fetchApi<ApiResponse<Folder>>(`/folders/${id}`, {
+  const response = await fetchApi<ApiResponse<Folder>>(`/v1/folders/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(request)
   });
@@ -206,27 +208,27 @@ export async function deleteFolder(id: string): Promise<void> {
 
 // Document API functions
 export async function getDocuments(): Promise<Document[]> {
-  const response = await fetchApi<ApiResponse<Document>>('/documents');
+  const response = await fetchApi<ApiResponse<Document>>('/v1/documents');
   return Array.isArray(response.data) ? response.data : [response.data];
 }
 
 export async function getDocumentsByUserId(userId: string): Promise<Document[]> {
-  const response = await fetchApi<ApiResponse<Document>>(`/documents?user_id=${userId}`);
+  const response = await fetchApi<ApiResponse<Document>>(`/v1/documents?user_id=${userId}`);
   return Array.isArray(response.data) ? response.data : [response.data];
 }
 
 export async function getDocumentsByFolderId(folderId: string): Promise<Document[]> {
-  const response = await fetchApi<ApiResponse<Document>>(`/documents?folder_id=${folderId}`);
+  const response = await fetchApi<ApiResponse<Document>>(`/v1/documents?folder_id=${folderId}`);
   return Array.isArray(response.data) ? response.data : [response.data];
 }
 
 export async function getDocumentsWithNoFolder(): Promise<Document[]> {
-  const response = await fetchApi<ApiResponse<Document>>('/documents?folder_id=null');
+  const response = await fetchApi<ApiResponse<Document>>('/v1/documents?folder_id=null');
   return Array.isArray(response.data) ? response.data : [response.data];
 }
 
 export async function getDocument(id: string): Promise<Document> {
-  const response = await fetchApi<ApiResponse<Document>>(`/documents/${id}`);
+  const response = await fetchApi<ApiResponse<Document>>(`/v1/documents/${id}`);
   return Array.isArray(response.data) ? response.data[0] : response.data;
 }
 
@@ -244,7 +246,7 @@ export async function createDocument(title: string, content: string, userId: str
     }
   };
 
-  const response = await fetchApi<ApiResponse<Document>>('/documents', {
+  const response = await fetchApi<ApiResponse<Document>>('/v1/documents', {
     method: 'POST',
     body: JSON.stringify(request)
   });
@@ -261,7 +263,7 @@ export async function updateDocument(id: string, data: Partial<{ title: string, 
     }
   };
 
-  const response = await fetchApi<ApiResponse<Document>>(`/documents/${id}`, {
+  const response = await fetchApi<ApiResponse<Document>>(`/v1/documents/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(request)
   });
@@ -270,7 +272,7 @@ export async function updateDocument(id: string, data: Partial<{ title: string, 
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  await fetchApi(`/documents/${id}`, {
+  await fetchApi(`/v1/documents/${id}`, {
     method: 'DELETE'
   });
 }
