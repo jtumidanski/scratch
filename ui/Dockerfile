@@ -28,6 +28,9 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.next ./.next
 
+# Install only production dependencies
+RUN npm install --production
+
 # Set the correct permissions
 RUN chown -R nextjs:nodejs /app
 
@@ -41,4 +44,4 @@ EXPOSE 3000
 ENV PORT 3000
 
 # Start the application
-CMD ["node", "server.js"]
+CMD ["npm", "start"]
