@@ -20,6 +20,21 @@ import {
 } from '@/lib/api'
 import { User, Folder, Document } from '@/lib/api-types'
 
+// Custom debounce function implementation
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout | null = null;
+
+  return (...args: any[]) => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+
+    timeout = setTimeout(() => {
+      func(...args);
+    }, wait);
+  };
+};
+
 // Define types for navigation
 type ItemType = 'folder' | 'document';
 type NavigationItem = {
@@ -34,6 +49,7 @@ export default function DashboardPage() {
   const [folders, setFolders] = useState<Folder[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [localContent, setLocalContent] = useState<string>('')
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined)
@@ -169,6 +185,7 @@ export default function DashboardPage() {
 
   const handleDocumentSelect = (document: Document) => {
     setSelectedDocument(document)
+    setLocalContent(document.attributes.content)
 
     // Use setTimeout to ensure the Textarea is rendered before trying to focus it
     setTimeout(() => {
@@ -290,25 +307,38 @@ export default function DashboardPage() {
     };
   }, [navigationItems, focusedItemId, expandedFolders, toggleFolder, setFocusedItemId, deleteDocumentDialogOpen, deleteFolderDialogOpen, documents, handleDocumentSelect])
 
-  const handleDocumentChange = async (content: string) => {
-    if (selectedDocument) {
+  // Create a debounced function for API updates
+  const debouncedUpdateDocument = useCallback(
+    debounce(async (documentId: string, content: string) => {
       try {
-        // Update the document via the API
-        const updatedDocument = await updateDocument(selectedDocument.id, { content })
+        const updatedDocument = await updateDocument(documentId, { content });
 
-        setSelectedDocument(updatedDocument)
+        setSelectedDocument(updatedDocument);
 
-        // Update the local state with the updated document
+        // Update the documents array with the updated document
         setDocuments(prev => 
           prev.map(doc => 
-            doc.id === selectedDocument.id 
+            doc.id === documentId 
               ? updatedDocument
               : doc
           )
-        )
+        );
       } catch (error) {
-        console.error('Error updating document:', error)
+        console.error('Error updating document:', error);
       }
+    }, 500), // 500ms debounce time
+    []
+  );
+
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (selectedDocument) {
+      const newContent = e.target.value;
+
+      // Update local state immediately (this preserves cursor position)
+      setLocalContent(newContent);
+
+      // Debounce the API update
+      debouncedUpdateDocument(selectedDocument.id, newContent);
     }
   }
 
@@ -527,8 +557,8 @@ export default function DashboardPage() {
             <Textarea
               ref={textareaRef}
               className="flex-1 min-h-[300px]"
-              value={selectedDocument.attributes.content}
-              onChange={(e) => handleDocumentChange(e.target.value)}
+              value={localContent}
+              onChange={handleDocumentChange}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   e.currentTarget.blur();
