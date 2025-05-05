@@ -607,7 +607,7 @@ export default function DashboardPage() {
 
       {/* Left segment - Document/Folder Navigation */}
       <div 
-        className={`${showLeftPane ? 'block' : 'hidden'} md:block w-full md:w-1/3 lg:w-1/4 md:border-r border-b md:border-b-0 overflow-y-auto p-4 h-[40vh] max-h-[400px] md:h-auto`}
+        className={`${showLeftPane ? 'block' : 'hidden'} md:block w-full md:w-1/3 lg:w-1/4 md:border-r border-b md:border-b-0 overflow-y-auto md:overflow-y-hidden md:hover:overflow-y-auto p-4 h-[40vh] max-h-[400px] md:max-h-none md:h-auto`}
         onKeyDown={(e) => {
           // Only handle arrow down to start navigation if nothing is focused
           if (e.key === 'ArrowDown' && !focusedItemId && navigationItems.length > 0) {
