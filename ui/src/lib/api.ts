@@ -202,7 +202,7 @@ export async function updateFolder(id: string, data: Partial<{ name: string, par
 }
 
 export async function deleteFolder(id: string): Promise<void> {
-  await fetchApi(`/folders/${id}`, {
+  await fetchApi(`/v1/folders/${id}`, {
     method: 'DELETE'
   });
 }
