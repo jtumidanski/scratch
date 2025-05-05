@@ -65,6 +65,7 @@ export default function DashboardPage() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined)
+  const [showLeftPane, setShowLeftPane] = useState(true)
 
   // Edit history state
   const [editHistory, setEditHistory] = useState<HistoryEntry[]>([])
@@ -503,7 +504,7 @@ export default function DashboardPage() {
         <div key={folder.id}>
           <div className={`flex items-center justify-between group hover:bg-muted ${focusedItemId === folder.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}>
             <div 
-              className="flex items-center p-2 cursor-pointer flex-grow select-none"
+              className="flex items-center p-2 md:p-2 py-3 md:py-2 cursor-pointer flex-grow select-none"
               onClick={() => toggleFolder(folder.id)}
               ref={(el) => {
                 if (el) {
@@ -528,7 +529,7 @@ export default function DashboardPage() {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="h-6 w-6 p-0 ml-1 group-hover:text-foreground" 
+                className="h-8 w-8 md:h-6 md:w-6 p-0 ml-1 group-hover:text-foreground" 
                 onClick={(e) => {
                   e.stopPropagation()
                   handleFolderDelete(folder)
@@ -546,10 +547,10 @@ export default function DashboardPage() {
               {folderDocuments.map(doc => (
                 <div 
                   key={doc.id}
-                  className={`flex items-center justify-between group ${selectedDocument?.id === doc.id ? 'bg-primary/10' : 'hover:bg-muted'} ${focusedItemId === doc.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}
+                  className={`flex items-center justify-between group ${selectedDocument?.id === doc.id ? 'bg-primary/20 border-l-4 border-primary' : 'hover:bg-muted'} ${focusedItemId === doc.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}
                 >
                   <div 
-                    className="flex items-center p-2 cursor-pointer flex-grow select-none"
+                    className="flex items-center p-2 md:p-2 py-3 md:py-2 cursor-pointer flex-grow select-none"
                     onClick={() => handleDocumentSelect(doc)}
                     ref={(el) => {
                       if (el) {
@@ -564,7 +565,7 @@ export default function DashboardPage() {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-6 w-6 p-0" 
+                      className="h-8 w-8 md:h-6 md:w-6 p-0" 
                       onClick={(e) => {
                         e.stopPropagation()
                         handleDocumentDelete(doc)
@@ -592,9 +593,21 @@ export default function DashboardPage() {
 
   return (
     <>
+      {/* Mobile toggle button for left pane */}
+      <div className="md:hidden flex justify-between items-center p-2 border-b">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setShowLeftPane(!showLeftPane)}
+          className="text-xs"
+        >
+          {showLeftPane ? 'Hide Documents' : 'Show Documents'}
+        </Button>
+      </div>
+
       {/* Left segment - Document/Folder Navigation */}
       <div 
-        className="w-1/4 border-r overflow-y-auto p-4"
+        className={`${showLeftPane ? 'block' : 'hidden'} md:block w-full md:w-1/3 lg:w-1/4 md:border-r border-b md:border-b-0 overflow-y-auto p-4 h-[40vh] max-h-[400px] md:h-auto`}
         onKeyDown={(e) => {
           // Only handle arrow down to start navigation if nothing is focused
           if (e.key === 'ArrowDown' && !focusedItemId && navigationItems.length > 0) {
@@ -624,10 +637,10 @@ export default function DashboardPage() {
           .map(doc => (
             <div 
               key={doc.id}
-              className={`flex items-center justify-between group ${selectedDocument?.id === doc.id ? 'bg-primary/10' : 'hover:bg-muted'} ${focusedItemId === doc.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}
+              className={`flex items-center justify-between group ${selectedDocument?.id === doc.id ? 'bg-primary/20 border-l-4 border-primary' : 'hover:bg-muted'} ${focusedItemId === doc.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}
             >
               <div 
-                className="flex items-center p-2 cursor-pointer flex-grow select-none"
+                className="flex items-center p-2 md:p-2 py-3 md:py-2 cursor-pointer flex-grow select-none"
                 onClick={() => handleDocumentSelect(doc)}
                 ref={(el) => {
                   if (el) {
@@ -642,7 +655,7 @@ export default function DashboardPage() {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="h-6 w-6 p-0" 
+                  className="h-8 w-8 md:h-6 md:w-6 p-0" 
                   onClick={(e) => {
                     e.stopPropagation()
                     handleDocumentDelete(doc)
@@ -660,13 +673,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Right segment - Document Content */}
-      <div className="w-3/4 p-4 overflow-y-auto">
+      <div className={`w-full ${showLeftPane ? '' : 'md:w-full'} md:w-2/3 lg:w-3/4 p-4 overflow-y-auto flex-1 md:flex-auto`}>
         {selectedDocument ? (
           <div className="h-full flex flex-col">
-            <h2 className="text-xl font-semibold mb-4">{selectedDocument.attributes.title}</h2>
+            <h2 className={`text-xl font-semibold mb-4 ${!showLeftPane ? 'md:hidden' : ''}`}>{selectedDocument.attributes.title}</h2>
             <Textarea
               ref={textareaRef}
-              className="flex-1 min-h-[300px]"
+              className="flex-1 min-h-[200px] md:min-h-[300px]"
               value={localContent}
               onChange={handleDocumentChange}
               onKeyDown={(e) => {

@@ -20,6 +20,7 @@ interface CreateItemDialogProps {
   parentId?: string
   onItemCreated: () => void
   triggerLabel?: string
+  triggerClassName?: string
 }
 
 type ItemType = "document" | "folder"
@@ -28,7 +29,8 @@ export function CreateItemDialog({
   userId, 
   parentId, 
   onItemCreated,
-  triggerLabel = "New Item"
+  triggerLabel = "New Item",
+  triggerClassName = ""
 }: CreateItemDialogProps) {
   const [name, setName] = useState("")
   const [itemType, setItemType] = useState<ItemType>("document")
@@ -62,7 +64,7 @@ export function CreateItemDialog({
         <Button 
           variant={triggerLabel ? "outline" : "ghost"} 
           size="sm" 
-          className={`flex items-center ${!triggerLabel ? 'h-6 w-6 p-0 group-hover:text-foreground' : ''}`}
+          className={`flex items-center ${!triggerLabel ? 'h-6 w-6 p-0 group-hover:text-foreground' : ''} ${triggerClassName}`}
         >
           <Plus className={`h-4 w-4 ${triggerLabel ? 'mr-1' : ''}`} />
           {triggerLabel}
