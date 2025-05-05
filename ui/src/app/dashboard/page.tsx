@@ -44,6 +44,18 @@ type NavigationItem = {
   element: HTMLElement | null;
 };
 
+// Define type for history entries
+type HistoryEntry = {
+  content: string;
+  cursorPosition: {
+    start: number;
+    end: number;
+  };
+};
+
+// Configuration for edit history
+const HISTORY_SIZE = 50;
+
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [folders, setFolders] = useState<Folder[]>([])
@@ -53,6 +65,11 @@ export default function DashboardPage() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined)
+
+  // Edit history state
+  const [editHistory, setEditHistory] = useState<HistoryEntry[]>([])
+  const [historyPosition, setHistoryPosition] = useState(-1)
+  const [isUndoRedoAction, setIsUndoRedoAction] = useState(false)
 
   // Navigation state
   const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
@@ -185,7 +202,19 @@ export default function DashboardPage() {
 
   const handleDocumentSelect = (document: Document) => {
     setSelectedDocument(document)
-    setLocalContent(document.attributes.content)
+    const content = document.attributes.content
+    setLocalContent(content)
+
+    // Reset edit history when selecting a new document
+    // Initialize with default cursor position at the start of the document
+    setEditHistory([{
+      content,
+      cursorPosition: {
+        start: 0,
+        end: 0
+      }
+    }])
+    setHistoryPosition(0)
 
     // Use setTimeout to ensure the Textarea is rendered before trying to focus it
     setTimeout(() => {
@@ -330,12 +359,93 @@ export default function DashboardPage() {
     []
   );
 
+  // Undo function - go back one step in history
+  const handleUndo = () => {
+    if (historyPosition > 0 && textareaRef.current) {
+      setIsUndoRedoAction(true);
+      const newPosition = historyPosition - 1;
+      const historyEntry = editHistory[newPosition];
+
+      setHistoryPosition(newPosition);
+      setLocalContent(historyEntry.content);
+
+      // Restore the cursor position that was saved with this history entry
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = historyEntry.cursorPosition.start;
+          textareaRef.current.selectionEnd = historyEntry.cursorPosition.end;
+          textareaRef.current.focus();
+        }
+      }, 0);
+
+      // Debounce the API update with the content from history
+      if (selectedDocument) {
+        debouncedUpdateDocument(selectedDocument.id, historyEntry.content);
+      }
+    }
+  };
+
+  // Redo function - go forward one step in history
+  const handleRedo = () => {
+    if (historyPosition < editHistory.length - 1 && textareaRef.current) {
+      setIsUndoRedoAction(true);
+      const newPosition = historyPosition + 1;
+      const historyEntry = editHistory[newPosition];
+
+      setHistoryPosition(newPosition);
+      setLocalContent(historyEntry.content);
+
+      // Restore the cursor position that was saved with this history entry
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = historyEntry.cursorPosition.start;
+          textareaRef.current.selectionEnd = historyEntry.cursorPosition.end;
+          textareaRef.current.focus();
+        }
+      }, 0);
+
+      // Debounce the API update with the content from history
+      if (selectedDocument) {
+        debouncedUpdateDocument(selectedDocument.id, historyEntry.content);
+      }
+    }
+  };
+
+
   const handleDocumentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (selectedDocument) {
       const newContent = e.target.value;
+      const textarea = e.target;
 
       // Update local state immediately (this preserves cursor position)
       setLocalContent(newContent);
+
+      // If this change is from an undo/redo action, don't add to history
+      if (isUndoRedoAction) {
+        setIsUndoRedoAction(false);
+        return;
+      }
+
+      // Create a new history entry with content and cursor position
+      const newEntry: HistoryEntry = {
+        content: newContent,
+        cursorPosition: {
+          start: textarea.selectionStart,
+          end: textarea.selectionEnd
+        }
+      };
+
+      // Add to history, truncating any future history if we're not at the end
+      // This ensures that undone edits are removed from the cache when new edits are made
+      const newHistory = [...editHistory.slice(0, historyPosition + 1), newEntry];
+
+      // Limit history size
+      if (newHistory.length > HISTORY_SIZE) {
+        newHistory.shift(); // Remove oldest entry
+      }
+
+      setEditHistory(newHistory);
+      setHistoryPosition(newHistory.length - 1);
 
       // Debounce the API update
       debouncedUpdateDocument(selectedDocument.id, newContent);
@@ -562,6 +672,18 @@ export default function DashboardPage() {
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   e.currentTarget.blur();
+                }
+
+                // Undo: Ctrl+Z
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleUndo();
+                }
+
+                // Redo: Ctrl+Y or Ctrl+Shift+Z
+                if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                  e.preventDefault();
+                  handleRedo();
                 }
               }}
             />
