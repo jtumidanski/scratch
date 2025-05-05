@@ -20,6 +20,21 @@ import {
 } from '@/lib/api'
 import { User, Folder, Document } from '@/lib/api-types'
 
+// Custom debounce function implementation
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout | null = null;
+
+  return (...args: any[]) => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+
+    timeout = setTimeout(() => {
+      func(...args);
+    }, wait);
+  };
+};
+
 // Define types for navigation
 type ItemType = 'folder' | 'document';
 type NavigationItem = {
@@ -29,14 +44,33 @@ type NavigationItem = {
   element: HTMLElement | null;
 };
 
+// Define type for history entries
+type HistoryEntry = {
+  content: string;
+  cursorPosition: {
+    start: number;
+    end: number;
+  };
+};
+
+// Configuration for edit history
+const HISTORY_SIZE = 50;
+
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [folders, setFolders] = useState<Folder[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [localContent, setLocalContent] = useState<string>('')
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined)
+  const [showLeftPane, setShowLeftPane] = useState(true)
+
+  // Edit history state
+  const [editHistory, setEditHistory] = useState<HistoryEntry[]>([])
+  const [historyPosition, setHistoryPosition] = useState(-1)
+  const [isUndoRedoAction, setIsUndoRedoAction] = useState(false)
 
   // Navigation state
   const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
@@ -169,6 +203,19 @@ export default function DashboardPage() {
 
   const handleDocumentSelect = (document: Document) => {
     setSelectedDocument(document)
+    const content = document.attributes.content
+    setLocalContent(content)
+
+    // Reset edit history when selecting a new document
+    // Initialize with default cursor position at the start of the document
+    setEditHistory([{
+      content,
+      cursorPosition: {
+        start: 0,
+        end: 0
+      }
+    }])
+    setHistoryPosition(0)
 
     // Use setTimeout to ensure the Textarea is rendered before trying to focus it
     setTimeout(() => {
@@ -290,25 +337,119 @@ export default function DashboardPage() {
     };
   }, [navigationItems, focusedItemId, expandedFolders, toggleFolder, setFocusedItemId, deleteDocumentDialogOpen, deleteFolderDialogOpen, documents, handleDocumentSelect])
 
-  const handleDocumentChange = async (content: string) => {
-    if (selectedDocument) {
+  // Create a debounced function for API updates
+  const debouncedUpdateDocument = useCallback(
+    debounce(async (documentId: string, content: string) => {
       try {
-        // Update the document via the API
-        const updatedDocument = await updateDocument(selectedDocument.id, { content })
+        const updatedDocument = await updateDocument(documentId, { content });
 
-        setSelectedDocument(updatedDocument)
+        setSelectedDocument(updatedDocument);
 
-        // Update the local state with the updated document
+        // Update the documents array with the updated document
         setDocuments(prev => 
           prev.map(doc => 
-            doc.id === selectedDocument.id 
+            doc.id === documentId 
               ? updatedDocument
               : doc
           )
-        )
+        );
       } catch (error) {
-        console.error('Error updating document:', error)
+        console.error('Error updating document:', error);
       }
+    }, 500), // 500ms debounce time
+    []
+  );
+
+  // Undo function - go back one step in history
+  const handleUndo = () => {
+    if (historyPosition > 0 && textareaRef.current) {
+      setIsUndoRedoAction(true);
+      const newPosition = historyPosition - 1;
+      const historyEntry = editHistory[newPosition];
+
+      setHistoryPosition(newPosition);
+      setLocalContent(historyEntry.content);
+
+      // Restore the cursor position that was saved with this history entry
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = historyEntry.cursorPosition.start;
+          textareaRef.current.selectionEnd = historyEntry.cursorPosition.end;
+          textareaRef.current.focus();
+        }
+      }, 0);
+
+      // Debounce the API update with the content from history
+      if (selectedDocument) {
+        debouncedUpdateDocument(selectedDocument.id, historyEntry.content);
+      }
+    }
+  };
+
+  // Redo function - go forward one step in history
+  const handleRedo = () => {
+    if (historyPosition < editHistory.length - 1 && textareaRef.current) {
+      setIsUndoRedoAction(true);
+      const newPosition = historyPosition + 1;
+      const historyEntry = editHistory[newPosition];
+
+      setHistoryPosition(newPosition);
+      setLocalContent(historyEntry.content);
+
+      // Restore the cursor position that was saved with this history entry
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = historyEntry.cursorPosition.start;
+          textareaRef.current.selectionEnd = historyEntry.cursorPosition.end;
+          textareaRef.current.focus();
+        }
+      }, 0);
+
+      // Debounce the API update with the content from history
+      if (selectedDocument) {
+        debouncedUpdateDocument(selectedDocument.id, historyEntry.content);
+      }
+    }
+  };
+
+
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (selectedDocument) {
+      const newContent = e.target.value;
+      const textarea = e.target;
+
+      // Update local state immediately (this preserves cursor position)
+      setLocalContent(newContent);
+
+      // If this change is from an undo/redo action, don't add to history
+      if (isUndoRedoAction) {
+        setIsUndoRedoAction(false);
+        return;
+      }
+
+      // Create a new history entry with content and cursor position
+      const newEntry: HistoryEntry = {
+        content: newContent,
+        cursorPosition: {
+          start: textarea.selectionStart,
+          end: textarea.selectionEnd
+        }
+      };
+
+      // Add to history, truncating any future history if we're not at the end
+      // This ensures that undone edits are removed from the cache when new edits are made
+      const newHistory = [...editHistory.slice(0, historyPosition + 1), newEntry];
+
+      // Limit history size
+      if (newHistory.length > HISTORY_SIZE) {
+        newHistory.shift(); // Remove oldest entry
+      }
+
+      setEditHistory(newHistory);
+      setHistoryPosition(newHistory.length - 1);
+
+      // Debounce the API update
+      debouncedUpdateDocument(selectedDocument.id, newContent);
     }
   }
 
@@ -363,7 +504,7 @@ export default function DashboardPage() {
         <div key={folder.id}>
           <div className={`flex items-center justify-between group hover:bg-muted ${focusedItemId === folder.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}>
             <div 
-              className="flex items-center p-2 cursor-pointer flex-grow select-none"
+              className="flex items-center p-2 md:p-2 py-3 md:py-2 cursor-pointer flex-grow select-none"
               onClick={() => toggleFolder(folder.id)}
               ref={(el) => {
                 if (el) {
@@ -388,7 +529,7 @@ export default function DashboardPage() {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="h-6 w-6 p-0 ml-1 group-hover:text-foreground" 
+                className="h-8 w-8 md:h-6 md:w-6 p-0 ml-1 group-hover:text-foreground" 
                 onClick={(e) => {
                   e.stopPropagation()
                   handleFolderDelete(folder)
@@ -406,10 +547,10 @@ export default function DashboardPage() {
               {folderDocuments.map(doc => (
                 <div 
                   key={doc.id}
-                  className={`flex items-center justify-between group ${selectedDocument?.id === doc.id ? 'bg-primary/10' : 'hover:bg-muted'} ${focusedItemId === doc.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}
+                  className={`flex items-center justify-between group ${selectedDocument?.id === doc.id ? 'bg-primary/20 border-l-4 border-primary' : 'hover:bg-muted'} ${focusedItemId === doc.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}
                 >
                   <div 
-                    className="flex items-center p-2 cursor-pointer flex-grow select-none"
+                    className="flex items-center p-2 md:p-2 py-3 md:py-2 cursor-pointer flex-grow select-none"
                     onClick={() => handleDocumentSelect(doc)}
                     ref={(el) => {
                       if (el) {
@@ -424,7 +565,7 @@ export default function DashboardPage() {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-6 w-6 p-0" 
+                      className="h-8 w-8 md:h-6 md:w-6 p-0" 
                       onClick={(e) => {
                         e.stopPropagation()
                         handleDocumentDelete(doc)
@@ -452,9 +593,21 @@ export default function DashboardPage() {
 
   return (
     <>
+      {/* Mobile toggle button for left pane */}
+      <div className="md:hidden flex justify-between items-center p-2 border-b">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setShowLeftPane(!showLeftPane)}
+          className="text-xs"
+        >
+          {showLeftPane ? 'Hide Documents' : 'Show Documents'}
+        </Button>
+      </div>
+
       {/* Left segment - Document/Folder Navigation */}
       <div 
-        className="w-1/4 border-r overflow-y-auto p-4"
+        className={`${showLeftPane ? 'block' : 'hidden'} md:block w-full md:w-1/3 lg:w-1/4 md:border-r border-b md:border-b-0 overflow-y-auto md:overflow-y-hidden md:hover:overflow-y-auto p-4 h-[40vh] max-h-[400px] md:max-h-none md:h-auto`}
         onKeyDown={(e) => {
           // Only handle arrow down to start navigation if nothing is focused
           if (e.key === 'ArrowDown' && !focusedItemId && navigationItems.length > 0) {
@@ -484,10 +637,10 @@ export default function DashboardPage() {
           .map(doc => (
             <div 
               key={doc.id}
-              className={`flex items-center justify-between group ${selectedDocument?.id === doc.id ? 'bg-primary/10' : 'hover:bg-muted'} ${focusedItemId === doc.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}
+              className={`flex items-center justify-between group ${selectedDocument?.id === doc.id ? 'bg-primary/20 border-l-4 border-primary' : 'hover:bg-muted'} ${focusedItemId === doc.id ? 'bg-primary/20 outline-none ring-2 ring-primary' : ''}`}
             >
               <div 
-                className="flex items-center p-2 cursor-pointer flex-grow select-none"
+                className="flex items-center p-2 md:p-2 py-3 md:py-2 cursor-pointer flex-grow select-none"
                 onClick={() => handleDocumentSelect(doc)}
                 ref={(el) => {
                   if (el) {
@@ -502,7 +655,7 @@ export default function DashboardPage() {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="h-6 w-6 p-0" 
+                  className="h-8 w-8 md:h-6 md:w-6 p-0" 
                   onClick={(e) => {
                     e.stopPropagation()
                     handleDocumentDelete(doc)
@@ -520,18 +673,30 @@ export default function DashboardPage() {
       </div>
 
       {/* Right segment - Document Content */}
-      <div className="w-3/4 p-4 overflow-y-auto">
+      <div className={`w-full ${showLeftPane ? '' : 'md:w-full'} md:w-2/3 lg:w-3/4 p-4 overflow-y-auto flex-1 md:flex-auto`}>
         {selectedDocument ? (
           <div className="h-full flex flex-col">
-            <h2 className="text-xl font-semibold mb-4">{selectedDocument.attributes.title}</h2>
+            <h2 className={`text-xl font-semibold mb-4 ${!showLeftPane ? 'md:hidden' : ''}`}>{selectedDocument.attributes.title}</h2>
             <Textarea
               ref={textareaRef}
-              className="flex-1 min-h-[300px]"
-              value={selectedDocument.attributes.content}
-              onChange={(e) => handleDocumentChange(e.target.value)}
+              className="flex-1 min-h-[200px] md:min-h-[300px]"
+              value={localContent}
+              onChange={handleDocumentChange}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   e.currentTarget.blur();
+                }
+
+                // Undo: Ctrl+Z
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleUndo();
+                }
+
+                // Redo: Ctrl+Y or Ctrl+Shift+Z
+                if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                  e.preventDefault();
+                  handleRedo();
                 }
               }}
             />
