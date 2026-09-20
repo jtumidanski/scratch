@@ -1,0 +1,30 @@
+name: Trigger Probe
+
+# Phase 5c probe. Answers two questions this Forgejo version does not document
+# and that MyFleet's port depends on:
+#
+#   1. Is `paths-ignore` honoured on a push trigger?
+#   2. Is `[skip ci]` in a commit message honoured?
+#
+# MyFleet's `bump-overlay` job pushes a commit straight to `main` and has no
+# convergence guard -- unlike atlas, whose bump produces an empty build matrix
+# and therefore stops on its own. On GitHub the loop is broken by GITHUB_TOKEN
+# pushes not re-triggering workflows. Forgejo has no such suppression, so these
+# two guards are all that stand between a merge to MyFleet's main and an
+# unbounded republish-retag-rebump loop -- each iteration of which is a live
+# Argo CD rollout and a new semver tag.
+#
+# Delete this workflow and probe/ once the answers are recorded in the spec.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'probe/ignored.txt'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        run: |
+          echo "probe ran for ${{ github.sha }}"
