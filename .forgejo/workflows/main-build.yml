@@ -1,0 +1,145 @@
+name: Main - Build and Publish
+
+# Forge port of .github/workflows/{srv,ui}-main-build.yml (Phase 5c).
+#
+# The two GitHub workflows were near-identical copies differing only in the
+# image name and build context, so they collapse into one matrix here.
+#
+# Substantive departures from the originals, all forced by the environment:
+#
+#   1. `docker build` / `docker push` / `docker manifest` are gone. The
+#      runners are host mode -- the pod IS the job environment and has no
+#      Docker daemon -- so every build goes through buildx with
+#      `driver: remote` against the in-cluster buildkitd. That is what
+#      ci/actions/buildx-build@v1 wraps.
+#   2. `runs-on: ubuntu-24.04-arm` is gone with the whole arm64 leg. No runner
+#      advertises that label here, so those jobs queued forever: runs 77 and 78
+#      still held two `waiting` build-arm64 jobs when this was written, weeks
+#      after the pushes that created them. arm64 is disabled fleet-wide anyway
+#      pending menoetius's recovery.
+#   3. The registry is zot, not ghcr.io, and the credential is the zot `ci`
+#      user rather than a GHCR login.
+#
+# :latest is still published as a manifest list, exactly as `docker manifest
+# create` produced before -- with a single amd64 entry instead of two. The
+# cluster's Deployments pin :latest, so they need no change when arm64 returns
+# and a second entry appears.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: registry.tumidanski
+  IMAGE_PREFIX: registry.tumidanski/jtumidanski/scratch
+
+jobs:
+  build-amd64:
+    name: Build AMD64 - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: scratch-srv
+            context: ./srv
+            dockerfile: ./srv/Dockerfile
+          - service: scratch-ui
+            context: ./ui
+            dockerfile: ./ui/Dockerfile
+
+    steps:
+      # /work is a per-pod emptyDir and the runners are capacity: 1, so no two
+      # jobs share it concurrently -- but a previous job on this pod may have
+      # left a toolchain cache behind.
+      - name: Reset the job cache
+        run: rm -rf /work/ci-cache
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Compute short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Select an amd64 BuildKit replica
+        id: amd64
+        uses: ci/actions/select-amd64-builder@v1
+        with:
+          index: 0
+
+      - name: Build and push
+        uses: ci/actions/buildx-build@v1
+        with:
+          context: ${{ matrix.context }}
+          dockerfile: ${{ matrix.dockerfile }}
+          image: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: latest-amd64,main-${{ steps.sha.outputs.short }}-amd64
+          platform: linux/amd64
+          buildkit-endpoint: ${{ steps.amd64.outputs.endpoint }}
+          push: 'true'
+          registry: ${{ env.REGISTRY }}
+          registry-username: ci
+          registry-password: ${{ secrets.ZOT_CI_PASSWORD }}
+          cache-scope: scratch-${{ matrix.service }}-amd64
+
+  create-manifest:
+    name: Create Manifest - ${{ matrix.service }}
+    needs: build-amd64
+    if: needs.build-amd64.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [scratch-srv, scratch-ui]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Compute short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+
+      # imagetools talks to the registry directly and needs no builder or
+      # daemon, but it does need the login below.
+      - name: Log in to the registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ci
+          password: ${{ secrets.ZOT_CI_PASSWORD }}
+
+      - name: Join per-arch tags into manifest lists
+        env:
+          IMAGE: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          SHORT: ${{ steps.sha.outputs.short }}
+        run: |
+          set -euo pipefail
+          # Single-entry manifest lists on purpose: when arm64 returns, a
+          # second --amend source appears here and nothing downstream changes.
+          docker buildx imagetools create -t "${IMAGE}:latest" "${IMAGE}:latest-amd64"
+          docker buildx imagetools create -t "${IMAGE}:main-${SHORT}" "${IMAGE}:main-${SHORT}-amd64"
+          echo "Published ${IMAGE}:latest and ${IMAGE}:main-${SHORT}"
+
+  publish-complete:
+    name: Publish Complete
+    needs: [build-amd64, create-manifest]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          BUILD: ${{ needs.build-amd64.result }}
+          MANIFEST: ${{ needs.create-manifest.result }}
+        run: |
+          set -euo pipefail
+          echo "build-amd64=$BUILD create-manifest=$MANIFEST"
+          for r in "$BUILD" "$MANIFEST"; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "FAIL: a publish job reported '$r'" >&2; exit 1 ;;
+            esac
+          done
+          echo "OK"

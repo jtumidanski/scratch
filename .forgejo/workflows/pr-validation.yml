@@ -1,0 +1,110 @@
+name: PR Validation
+
+# Forge port of .github/workflows/{srv,ui}-pr-validation.yml (Phase 5c).
+#
+# Departures from the originals:
+#
+#   1. `actions/setup-go` is dropped. It downloads a toolchain from github.com
+#      release assets at job time -- the same anonymous github.com dependency
+#      that caused the atlas outage, and the reason Phase 5b dropped
+#      actions/setup-python from validate.yml. The runner image ships Go
+#      1.27.0 with GOTOOLCHAIN=local as of k3s 92f9cb2. srv's go.mod asks for
+#      1.24.2, which 1.27.0 satisfies.
+#   2. The ui job's `docker/build-push-action` with `cache-from: type=gha` is
+#      gone twice over: there is no Docker daemon and no GitHub Actions cache
+#      service here. It builds through buildx `driver: remote` with a registry
+#      cache in zot, and discards the result -- this job only asks whether the
+#      Dockerfile still builds.
+#   3. srv gets a container build check too. The GitHub version only built the
+#      ui image on a PR, so a broken srv/Dockerfile was not caught until main.
+
+on:
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: registry.tumidanski
+
+jobs:
+  test-go:
+    name: Test Go (srv)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reset the job cache
+        run: rm -rf /work/ci-cache
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Report the toolchain
+        run: go version
+
+      - name: Build
+        working-directory: ./srv
+        run: go build -v ./...
+
+      - name: Test
+        working-directory: ./srv
+        run: go test -v ./...
+
+  build-images:
+    name: Build image - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: scratch-srv
+            context: ./srv
+            dockerfile: ./srv/Dockerfile
+          - service: scratch-ui
+            context: ./ui
+            dockerfile: ./ui/Dockerfile
+
+    steps:
+      - name: Reset the job cache
+        run: rm -rf /work/ci-cache
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Select an amd64 BuildKit replica
+        id: amd64
+        uses: ci/actions/select-amd64-builder@v1
+        with:
+          index: 0
+
+      # push=false, so this needs no registry credential and writes nothing.
+      # The image is discarded; only the build succeeding matters.
+      - name: Build (no push)
+        uses: ci/actions/buildx-build@v1
+        with:
+          context: ${{ matrix.context }}
+          dockerfile: ${{ matrix.dockerfile }}
+          image: ${{ env.REGISTRY }}/jtumidanski/scratch/${{ matrix.service }}
+          tags: pr-${{ github.event.pull_request.number }}
+          platform: linux/amd64
+          buildkit-endpoint: ${{ steps.amd64.outputs.endpoint }}
+          push: 'false'
+          cache-scope: scratch-${{ matrix.service }}-amd64
+
+  pr-validation-complete:
+    name: PR Validation Complete
+    needs: [test-go, build-images]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          GO: ${{ needs.test-go.result }}
+          IMAGES: ${{ needs.build-images.result }}
+        run: |
+          set -euo pipefail
+          echo "test-go=$GO build-images=$IMAGES"
+          for r in "$GO" "$IMAGES"; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "FAIL: a validation job reported '$r'" >&2; exit 1 ;;
+            esac
+          done
+          echo "OK"
