@@ -70,14 +70,14 @@ jobs:
 
       - name: Select an amd64 BuildKit replica
         id: amd64
-        uses: ci/actions/select-amd64-builder@v1
+        uses: https://git.tumidanski/ci/actions/select-amd64-builder@v1
         with:
           index: 0
 
       # push=false, so this needs no registry credential and writes nothing.
       # The image is discarded; only the build succeeding matters.
       - name: Build (no push)
-        uses: ci/actions/buildx-build@v1
+        uses: https://git.tumidanski/ci/actions/buildx-build@v1
         with:
           context: ${{ matrix.context }}
           dockerfile: ${{ matrix.dockerfile }}
